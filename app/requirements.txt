@@ -1,0 +1,4 @@
+streamlit
+pandas
+databricks-sdk
+./incident_agent-0.1.0-py3-none-any.whl

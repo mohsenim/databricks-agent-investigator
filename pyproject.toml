@@ -1,0 +1,58 @@
+[build-system]
+requires = ["setuptools>=68"]
+build-backend = "setuptools.build_meta"
+
+[project]
+name = "incident-agent"
+version = "0.1.0"
+description = "Incident investigation agent for Databricks Lakeflow Jobs"
+requires-python = ">=3.11"
+dependencies = [
+  "pydantic>=2.6",
+]
+
+[project.optional-dependencies]
+databricks = [
+  "databricks-sdk",
+  "langgraph",
+  "openai",
+]
+app = ["streamlit"]
+dev = ["pytest", "ruff", "mypy", "pyyaml"]
+
+[project.scripts]
+incident-investigate = "incident_agent.entrypoints:investigate_main"
+incident-poll = "incident_agent.entrypoints:poll_main"
+
+[tool.setuptools.packages.find]
+where = ["src"]
+
+[tool.pytest.ini_options]
+testpaths = ["tests"]
+pythonpath = ["tests/unit"]
+markers = ["integration: needs a real Databricks workspace"]
+addopts = "-m 'not integration'"
+
+[tool.ruff]
+line-length = 100
+src = ["src", "tests"]
+# Databricks notebooks use globals like spark and dbutils
+extend-exclude = ["demo/notebooks"]
+
+[tool.mypy]
+python_version = "3.11"
+strict = false
+ignore_missing_imports = true
+
+[tool.ruff.lint.per-file-ignores]
+# Tools turn an API error into an "unavailable" result, so the agent loop does not crash.
+"src/incident_agent/tools/*.py" = ["BLE001"]
+# The investigator must always leave an incident row, even after an unexpected error.
+"src/incident_agent/investigate.py" = ["BLE001"]
+# If the model fails or answers badly, the agent uses the rule-based result.
+"src/incident_agent/graph.py" = ["BLE001"]
+# The app shows read errors to the user instead of crashing.
+"app/app.py" = ["BLE001"]
+# Scripts report each failed check and keep going.
+"scripts/*.py" = ["BLE001"]
+"bench/*.py" = ["BLE001"]

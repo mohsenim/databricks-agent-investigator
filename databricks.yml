@@ -1,0 +1,47 @@
+bundle:
+  name: incident-agent
+
+variables:
+  catalog:
+    default: agent_demo
+  schema:
+    default: incident_agent
+  warehouse_id:
+    description: SQL warehouse used by the agent, the app and the demo setup
+  model_endpoint:
+    description: Foundation Model serving endpoint with tool calling
+  poll_interval_cron:
+    default: "0 0/10 * * * ?"
+  app_name:
+    description: Name of the Databricks App (must be unique in the workspace)
+    default: incident-agent-app
+  poller_pause_status:
+    description: UNPAUSED starts the scheduled poller on deploy; PAUSED leaves it off
+    default: UNPAUSED
+
+artifacts:
+  agent_wheel:
+    type: whl
+    build: python -m build --wheel
+    path: .
+
+sync:
+  include:
+    - app/*.whl
+
+include:
+  - resources/*.yml
+  - demo/resources/*.yml
+
+targets:
+  dev:
+    mode: development
+    default: true
+  prod:
+    mode: production
+    workspace:
+      root_path: ~/.bundle/${bundle.name}/${bundle.target}
+    variables:
+      # Own schema and app name, so dev and prod can share one workspace.
+      schema: incident_agent_prod
+      app_name: incident-agent-prod

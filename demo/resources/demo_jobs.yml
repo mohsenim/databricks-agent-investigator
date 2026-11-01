@@ -1,0 +1,60 @@
+# The sample pipeline is only deployed to the dev target.
+targets:
+  dev:
+    resources:
+      jobs:
+        demo_ingest:
+          name: demo_ingest
+          tasks:
+            - task_key: generate_orders
+              notebook_task:
+                notebook_path: ../notebooks/generate_orders.py
+                base_parameters: { catalog: agent_demo }
+
+        demo_daily_sales:
+          name: demo_daily_sales
+          max_concurrent_runs: 1
+          tasks:
+            - task_key: transform_sales
+              notebook_task:
+                notebook_path: /Shared/agent_demo/transform_sales
+                base_parameters: { catalog: agent_demo }
+            - task_key: publish_report
+              depends_on: [{ task_key: transform_sales }]
+              notebook_task:
+                notebook_path: ../notebooks/publish_report.py
+                base_parameters: { catalog: agent_demo }
+            # Push trigger: starts the investigator when a watched task fails.
+            - task_key: investigate_on_failure
+              depends_on: [{ task_key: transform_sales }, { task_key: publish_report }]
+              run_if: AT_LEAST_ONE_FAILED
+              max_retries: 0
+              run_job_task:
+                job_id: ${resources.jobs.incident_investigator.id}
+                job_parameters:
+                  job_id: "{{job.id}}"
+                  run_id: "{{job.run_id}}"
+                  task_key: "transform_sales"
+                  task_run_id: "{{tasks.transform_sales.run_id}}"
+                  trigger_source: push
+                  job_name: demo_daily_sales
+            # Keeps the run status Failed: this task is skipped when the others fail.
+            - task_key: done
+              depends_on: [{ task_key: transform_sales }, { task_key: publish_report }]
+              run_if: ALL_SUCCESS
+              notebook_task:
+                notebook_path: ../notebooks/noop.py
+
+        demo_daily_sales_nohandler:
+          name: demo_daily_sales_nohandler
+          max_concurrent_runs: 1
+          tasks:
+            - task_key: transform_sales
+              notebook_task:
+                notebook_path: /Shared/agent_demo/transform_sales
+                base_parameters: { catalog: agent_demo }
+            - task_key: publish_report
+              depends_on: [{ task_key: transform_sales }]
+              notebook_task:
+                notebook_path: ../notebooks/publish_report.py
+                base_parameters: { catalog: agent_demo }
